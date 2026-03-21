@@ -1,0 +1,86 @@
+import streamlit as st
+import pandas as pd
+from collections import Counter
+
+# Configuración de la página (Cómo se verá en tu teléfono)
+st.set_page_config(page_title="Predictor Savii", page_icon="🎯", layout="centered")
+
+st.title("🎯 Predictor Activo")
+st.markdown("Sube tu historial actualizado y pilla los patrones del algoritmo.")
+
+# 1. Botón para subir el Excel o CSV
+archivo_subido = st.file_uploader("Sube tu archivo Excel o CSV aquí", type=["xlsx", "csv"])
+
+if archivo_subido is not None:
+    try:
+        # 2. Leer el archivo dependiendo de si es CSV o Excel
+        if archivo_subido.name.endswith('.csv'):
+            df = pd.read_csv(archivo_subido, header=None)
+        else:
+            df = pd.read_excel(archivo_subido, header=None)
+            
+        # Limpiar los datos (convertir a texto y quitar espacios para no perder los '00')
+        todos_los_datos = df[0].astype(str).str.strip().tolist()
+        
+        # Filtro maestro: Últimos 800 sorteos
+        ventana_sorteos = 800
+        datos_recientes = todos_los_datos[-ventana_sorteos:]
+        
+        st.success(f"✅ Archivo cargado al pelo. Analizando los últimos {len(datos_recientes)} resultados.")
+        st.divider()
+        
+        # 3. Buscador del número
+        objetivo = st.text_input("🎯 Ingresa el número que acaba de salir:", placeholder="Ejemplo: 1, 00, 5...")
+        
+        if objetivo:
+            objetivo = objetivo.strip()
+            apariciones = datos_recientes.count(objetivo)
+            
+            if apariciones == 0:
+                st.warning(f"⚠️ El número {objetivo} no ha salido en los últimos {ventana_sorteos} sorteos.")
+            else:
+                st.markdown(f"**El {objetivo} ha salido {apariciones} veces recientemente. Buscando patrones...**")
+                
+                # Listas para guardar los futuros resultados
+                siguientes_2 = []
+                siguientes_12 = []
+                
+                # Recorrer la ventana para cazar los patrones
+                for i in range(len(datos_recientes)):
+                    if datos_recientes[i] == objetivo:
+                        siguientes_2.extend(datos_recientes[i+1 : i+1+2])
+                        siguientes_12.extend(datos_recientes[i+1 : i+1+12])
+                
+                # --- ANÁLISIS 1: EL FIJO (Próximos 2 sorteos) ---
+                conteo_2 = Counter(siguientes_2)
+                fijo = conteo_2.most_common(1)
+                
+                st.subheader("🎯 EL MÁS FIJO (Próximos 2 sorteos)")
+                if fijo:
+                    st.info(f"El número que más revienta cortico es el **{fijo[0][0]}** (Ha salido {fijo[0][1]} veces justo después).")
+                else:
+                    st.write("No hay datos suficientes para los próximos 2 sorteos.")
+                
+                # --- ANÁLISIS 2: LOS CALIENTES (Próximos 12 sorteos) ---
+                conteo_12 = Counter(siguientes_12)
+                top_12 = conteo_12.most_common(3)
+                
+                st.subheader("🔥 LOS 3 CALIENTES (Próximos 12 sorteos)")
+                if top_12:
+                    for num, freq in top_12:
+                        st.success(f"Número **{num}** (Salió {freq} veces)")
+                
+                # --- ANÁLISIS 3: EL BATACAZO / SORPRESA ---
+                st.subheader("🎲 LA SORPRESA (El Batacazo)")
+                # Buscamos números que hayan salido solo 1 vez en esa ventana de 12 (están dormidos pero presentes)
+                batacazos = [num for num, freq in conteo_12.items() if freq == 1]
+                
+                if batacazos:
+                    st.warning(f"Ojo con el **{batacazos[-1]}**. Está agazapado y puede reventar en la ventana de 12.")
+                else:
+                    # Si no hay de frecuencia 1, lanzamos el menos común de la lista
+                    menos_comun = conteo_12.most_common()[-1]
+                    st.warning(f"Ojo con el **{menos_comun[0]}**. Es el menos esperado pero tiene potencial.")
+
+    except Exception as e:
+        st.error(f"❌ Verga, dio un error al leer el archivo. Detalle: {e}")
