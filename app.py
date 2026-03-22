@@ -5,7 +5,6 @@ from collections import Counter
 # Configuración de página
 st.set_page_config(page_title="Nostradamus", page_icon="📜", layout="centered")
 
-# Diccionario de animales y emojis
 animales = {
     '0': ('Delfín', '🐬'), '00': ('Ballena', '🐳'), '1': ('Carnero', '🐏'),
     '2': ('Toro', '🐂'), '3': ('Ciempiés', '🐛'), '4': ('Alacrán', '🦂'),
@@ -57,18 +56,23 @@ if archivo_subido is not None:
         else:
             df = pd.read_excel(archivo_subido, header=None)
             
-        todos_los_datos = df[0].astype(str).str.strip().tolist()
+        # NUEVO SISTEMA DE LIMPIEZA DE DATOS (Anti-Floats)
+        raw_data = df[0].dropna().tolist() # Ignoramos celdas vacías
+        todos_los_datos = []
+        for x in raw_data:
+            num = str(x).strip()
+            # Le volamos el decimal ".0" si Pandas se lo inventó
+            if num.endswith('.0'):
+                num = num[:-2]
+            todos_los_datos.append(num)
+            
         total_historial = len(todos_los_datos)
         
-        st.success(f"✅ Data cargada: {total_historial} sorteos disponibles.")
+        st.success(f"✅ Data cargada y filtrada: {total_historial} sorteos listos.")
         st.divider()
         
-        # Crear las tres pestañas de navegación
         tab1, tab2, tab3 = st.tabs(["🔍 Análisis de Pares", "🚨 Radar de Atrasos", "🔥 Top 5 Calientes"])
         
-        # ==========================================
-        # PESTAÑA 1: ANÁLISIS DEL PAR DETONANTE
-        # ==========================================
         with tab1:
             st.markdown("<h3>DETECCIÓN DE PARES</h3>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
@@ -84,13 +88,10 @@ if archivo_subido is not None:
                 inmediatos = []
                 siguientes_12 = []
                 
-                # Buscar el par en TODO el historial (para tener datos suficientes)
                 for i in range(total_historial - 1):
                     if todos_los_datos[i] == par1 and todos_los_datos[i+1] == par2:
-                        # Si hay un número después del par, lo guardamos
                         if i + 2 < total_historial:
                             inmediatos.append(todos_los_datos[i+2])
-                            # Guardamos los siguientes 12 después del par
                             limite = min(i + 2 + 12, total_historial)
                             siguientes_12.extend(todos_los_datos[i+2 : limite])
                             
@@ -99,9 +100,8 @@ if archivo_subido is not None:
                 if apariciones_par == 0:
                     st.warning(f"⚠️ El par {par1} seguido del {par2} nunca ha salido en el historial.")
                 else:
-                    st.info(f"📊 La secuencia [{par1} ➡️ {par2}] ha salido {apariciones_par} veces en la historia.")
+                    st.info(f"📊 La secuencia [{par1} ➡️ {par2}] ha detonado {apariciones_par} veces en la historia.")
                     
-                    # El Inmediato
                     conteo_inm = Counter(inmediatos)
                     top_inm = conteo_inm.most_common(1)[0]
                     nom_inm, emo_inm = animales.get(top_inm[0], ('?', '❓'))
@@ -115,7 +115,6 @@ if archivo_subido is not None:
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # Los próximos 12
                     conteo_12 = Counter(siguientes_12)
                     top_12_par = conteo_12.most_common(3)
                     
@@ -133,26 +132,19 @@ if archivo_subido is not None:
                                 </div>
                             """, unsafe_allow_html=True)
 
-        # ==========================================
-        # PESTAÑA 2: RADAR DE ATRASOS (Ausencias)
-        # ==========================================
         with tab2:
             st.markdown("<h3>🚨 NÚMEROS DESAPARECIDOS</h3>", unsafe_allow_html=True)
             st.markdown("<p style='text-align:center; color:#888;'>Sorteos que han pasado sin que salga cada número.</p>", unsafe_allow_html=True)
             
             atrasos = {}
-            # Buscamos de atrás hacia adelante en la lista
+            lista_inversa = todos_los_datos[::-1]
             for num_str in animales.keys():
-                # Reversar la lista para buscar la última aparición
                 try:
-                    # list.index busca la primera coincidencia, así que volteamos la lista
-                    lista_inversa = todos_los_datos[::-1]
                     sorteos_atras = lista_inversa.index(num_str)
                     atrasos[num_str] = sorteos_atras
                 except ValueError:
-                    atrasos[num_str] = total_historial # Nunca ha salido
+                    atrasos[num_str] = total_historial
                     
-            # Ordenamos los atrasos de mayor a menor
             atrasos_ordenados = sorted(atrasos.items(), key=lambda x: x[1], reverse=True)[:5]
             
             for num_atr, sorteos in atrasos_ordenados:
@@ -167,15 +159,17 @@ if archivo_subido is not None:
                     </div>
                 """, unsafe_allow_html=True)
 
-        # ==========================================
-        # PESTAÑA 3: LOS MÁS CALIENTES
-        # ==========================================
         with tab3:
             st.markdown("<h3>🔥 TOP 5 DEL MOMENTO</h3>", unsafe_allow_html=True)
             ventana_caliente = 800
             st.markdown(f"<p style='text-align:center; color:#888;'>Los que más han salido en los últimos {ventana_caliente} sorteos.</p>", unsafe_allow_html=True)
             
-            datos_recientes = todos_los_datos[-ventana_caliente:]
+            # Chequeo por si el historial es menor a 800
+            if total_historial < ventana_caliente:
+                datos_recientes = todos_los_datos
+            else:
+                datos_recientes = todos_los_datos[-ventana_caliente:]
+                
             conteo_general = Counter(datos_recientes)
             top_5_global = conteo_general.most_common(5)
             
@@ -193,4 +187,3 @@ if archivo_subido is not None:
 
     except Exception as e:
         st.error(f"❌ Error procesando el archivo: {e}")
-                
