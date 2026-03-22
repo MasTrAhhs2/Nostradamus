@@ -28,11 +28,9 @@ st.markdown("""
         .stApp { background-color: #000000; color: #ffffff; font-family: 'Montserrat', sans-serif; }
         h1, h2, h3 { text-align: center; font-family: 'Montserrat', sans-serif; color: #D4AF37; }
         
-        /* Cajas de inputs dobles */
         div[data-baseweb="input"] { border-radius: 10px; border: 2px solid #D4AF37; background-color: #111111; }
         div[data-baseweb="input"] input { font-size: 2rem !important; text-align: center !important; font-weight: bold; color: white; }
         
-        /* Pestañas (Tabs) */
         .stTabs [data-baseweb="tab-list"] { background-color: #111111; border-radius: 10px; padding: 5px; }
         .stTabs [data-baseweb="tab"] { color: #ffffff; font-weight: bold; }
         .stTabs [aria-selected="true"] { background-color: #D4AF37 !important; color: #000000 !important; border-radius: 5px; }
@@ -51,17 +49,19 @@ archivo_subido = st.file_uploader("", type=["xlsx", "csv"])
 
 if archivo_subido is not None:
     try:
+        # AQUI ESTÁ EL BLINDAJE: dtype=str obliga a que el 00 no se borre
         if archivo_subido.name.endswith('.csv'):
-            df = pd.read_csv(archivo_subido, header=None)
+            df = pd.read_csv(archivo_subido, header=None, dtype=str)
         else:
-            df = pd.read_excel(archivo_subido, header=None)
+            df = pd.read_excel(archivo_subido, header=None, dtype=str)
             
-        # NUEVO SISTEMA DE LIMPIEZA DE DATOS (Anti-Floats)
-        raw_data = df[0].dropna().tolist() # Ignoramos celdas vacías
+        raw_data = df[0].dropna().tolist() 
         todos_los_datos = []
+        
+        # Limpieza profunda
         for x in raw_data:
             num = str(x).strip()
-            # Le volamos el decimal ".0" si Pandas se lo inventó
+            # Si a pesar de todo detecta un .0 se lo mochamos
             if num.endswith('.0'):
                 num = num[:-2]
             todos_los_datos.append(num)
@@ -164,7 +164,6 @@ if archivo_subido is not None:
             ventana_caliente = 800
             st.markdown(f"<p style='text-align:center; color:#888;'>Los que más han salido en los últimos {ventana_caliente} sorteos.</p>", unsafe_allow_html=True)
             
-            # Chequeo por si el historial es menor a 800
             if total_historial < ventana_caliente:
                 datos_recientes = todos_los_datos
             else:
@@ -187,3 +186,4 @@ if archivo_subido is not None:
 
     except Exception as e:
         st.error(f"❌ Error procesando el archivo: {e}")
+2
