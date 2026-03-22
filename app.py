@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 from collections import Counter
 
-# Configuración de página
 st.set_page_config(page_title="Nostradamus", page_icon="📜", layout="centered")
 
 animales = {
@@ -21,20 +20,16 @@ animales = {
     '35': ('Jirafa', '🦒'), '36': ('Culebra', '🐍')
 }
 
-# CSS para el diseño premium y fondo negro
 st.markdown("""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&display=swap');
         .stApp { background-color: #000000; color: #ffffff; font-family: 'Montserrat', sans-serif; }
         h1, h2, h3 { text-align: center; font-family: 'Montserrat', sans-serif; color: #D4AF37; }
-        
         div[data-baseweb="input"] { border-radius: 10px; border: 2px solid #D4AF37; background-color: #111111; }
         div[data-baseweb="input"] input { font-size: 2rem !important; text-align: center !important; font-weight: bold; color: white; }
-        
         .stTabs [data-baseweb="tab-list"] { background-color: #111111; border-radius: 10px; padding: 5px; }
         .stTabs [data-baseweb="tab"] { color: #ffffff; font-weight: bold; }
         .stTabs [aria-selected="true"] { background-color: #D4AF37 !important; color: #000000 !important; border-radius: 5px; }
-
         .caja-resultado { background-color: #151515; border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); }
         .caja-numero { font-size: 1.8rem; font-weight: 800; color: #D4AF37; }
         .caja-emoji { font-size: 2.5rem; display: block; margin-bottom: 5px; }
@@ -48,38 +43,47 @@ st.markdown("<p style='text-align: center; color: #888;'>Panel de Control Estrat
 archivo_subido = st.file_uploader("", type=["xlsx", "csv"])
 
 if archivo_subido is not None:
+    st.markdown("<p style='text-align: center; color: #D4AF37; font-weight: bold;'>¿Dónde están los números MÁS RECIENTES en tu Excel?</p>", unsafe_allow_html=True)
+    orden_datos = st.radio("", ["⬇️ Al final de la lista (Abajo)", "⬆️ Al principio de la lista (Arriba)"], horizontal=True)
+
     try:
-        # AQUI ESTÁ EL BLINDAJE: dtype=str obliga a que el 00 no se borre
         if archivo_subido.name.endswith('.csv'):
             df = pd.read_csv(archivo_subido, header=None, dtype=str)
         else:
             df = pd.read_excel(archivo_subido, header=None, dtype=str)
             
-        raw_data = df[0].dropna().tolist() 
+        raw_data = df[df.columns[0]].dropna().tolist()
         todos_los_datos = []
         
-        # Limpieza profunda
         for x in raw_data:
-            num = str(x).strip()
-            # Si a pesar de todo detecta un .0 se lo mochamos
-            if num.endswith('.0'):
-                num = num[:-2]
-            todos_los_datos.append(num)
+            num_str = str(x).strip()
+            if num_str == '00' or num_str.startswith('00'):
+                todos_los_datos.append('00')
+            else:
+                try:
+                    val = float(num_str.replace(',', '.'))
+                    todos_los_datos.append(str(int(val)))
+                except ValueError:
+                    todos_los_datos.append(num_str)
+        
+        if "Arriba" in orden_datos:
+            todos_los_datos.reverse()
             
         total_historial = len(todos_los_datos)
         
-        st.success(f"✅ Data cargada y filtrada: {total_historial} sorteos listos.")
+        st.success(f"✅ Data cargada y sincronizada: {total_historial} sorteos listos.")
         st.divider()
         
         tab1, tab2, tab3 = st.tabs(["🔍 Análisis de Pares", "🚨 Radar de Atrasos", "🔥 Top 5 Calientes"])
         
         with tab1:
-            st.markdown("<h3>DETECCIÓN DE PARES</h3>", unsafe_allow_html=True)
+            st.markdown("<h3>DETECCIÓN DE PARES UNIDOS</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#888;'>Detecta el par sin importar quién salió primero.</p>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
             with col1:
-                par1 = st.text_input("Primer Número", placeholder="Ej: 1")
+                par1 = st.text_input("Primer Número", placeholder="Ej: 21")
             with col2:
-                par2 = st.text_input("Segundo Número", placeholder="Ej: 12")
+                par2 = st.text_input("Segundo Número", placeholder="Ej: 13")
                 
             if par1 and par2:
                 par1 = par1.strip()
@@ -88,8 +92,12 @@ if archivo_subido is not None:
                 inmediatos = []
                 siguientes_12 = []
                 
+                # 🔥 EL NUEVO MOTOR BIDIRECCIONAL 🔥
                 for i in range(total_historial - 1):
-                    if todos_los_datos[i] == par1 and todos_los_datos[i+1] == par2:
+                    condicion_directa = (todos_los_datos[i] == par1 and todos_los_datos[i+1] == par2)
+                    condicion_inversa = (todos_los_datos[i] == par2 and todos_los_datos[i+1] == par1)
+                    
+                    if condicion_directa or condicion_inversa:
                         if i + 2 < total_historial:
                             inmediatos.append(todos_los_datos[i+2])
                             limite = min(i + 2 + 12, total_historial)
@@ -98,9 +106,9 @@ if archivo_subido is not None:
                 apariciones_par = len(inmediatos)
                 
                 if apariciones_par == 0:
-                    st.warning(f"⚠️ El par {par1} seguido del {par2} nunca ha salido en el historial.")
+                    st.warning(f"⚠️ El par {par1} y {par2} nunca han salido juntos en el historial.")
                 else:
-                    st.info(f"📊 La secuencia [{par1} ➡️ {par2}] ha detonado {apariciones_par} veces en la historia.")
+                    st.info(f"📊 El par [{par1} ↔️ {par2}] unidos han detonado {apariciones_par} veces en la historia.")
                     
                     conteo_inm = Counter(inmediatos)
                     top_inm = conteo_inm.most_common(1)[0]
@@ -134,7 +142,9 @@ if archivo_subido is not None:
 
         with tab2:
             st.markdown("<h3>🚨 NÚMEROS DESAPARECIDOS</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; color:#888;'>Sorteos que han pasado sin que salga cada número.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#888;'>Tiempo que ha pasado sin que salga cada número.</p>", unsafe_allow_html=True)
+            
+            sorteos_diarios = 12
             
             atrasos = {}
             lista_inversa = todos_los_datos[::-1]
@@ -148,13 +158,15 @@ if archivo_subido is not None:
             atrasos_ordenados = sorted(atrasos.items(), key=lambda x: x[1], reverse=True)[:5]
             
             for num_atr, sorteos in atrasos_ordenados:
+                dias_aprox = sorteos // sorteos_diarios
                 nom_atr, emo_atr = animales.get(num_atr, ('?', '❓'))
                 st.markdown(f"""
                     <div class='caja-resultado' style='border-left: 5px solid #ff4b4b; text-align: left; display: flex; align-items: center;'>
                         <div style='font-size: 2.5rem; margin-right: 15px;'>{emo_atr}</div>
                         <div>
                             <span class='caja-numero' style='color: #ff4b4b;'>{num_atr} - {nom_atr}</span><br>
-                            <span style='color: white; font-weight: bold;'>{sorteos} sorteos sin salir</span>
+                            <span style='color: white; font-weight: bold;'>{sorteos} sorteos sin salir</span><br>
+                            <span style='color: #aaaaaa; font-size: 0.85rem;'>⏱️ Aprox. <b>{dias_aprox} días</b> de atraso</span>
                         </div>
                     </div>
                 """, unsafe_allow_html=True)
@@ -186,4 +198,4 @@ if archivo_subido is not None:
 
     except Exception as e:
         st.error(f"❌ Error procesando el archivo: {e}")
-2
+        
