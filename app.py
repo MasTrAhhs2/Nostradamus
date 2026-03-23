@@ -235,4 +235,4 @@ if archivo_subido is not None:
                             """, unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"❌ Error procesando el archivo: {e}")2
+        st.error(f"❌ Error procesando el archivo: {e}")
