@@ -37,8 +37,9 @@ st.markdown("""
         .caja-texto { font-size: 0.9rem; color: #aaaaaa; }
         .caja-sinergia { background: linear-gradient(45deg, #1a0000, #4d0000); border: 2px solid #ff4b4b; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 20px; box-shadow: 0px 0px 15px rgba(255, 75, 75, 0.4); }
         .caja-tripleta { background: linear-gradient(90deg, #151515, #222); border-left: 5px solid #D4AF37; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0px 4px 10px rgba(0,0,0,0.5); }
-        .animal-tripleta { text-align: center; margin: 0 10px; }
-        .stats-tripleta { text-align: right; color: #00ff00; font-weight: bold; font-size: 1.2rem; }
+        .caja-tripleta-fuego { background: linear-gradient(90deg, #2b0000, #151515); border-left: 5px solid #ff4b4b; border-radius: 10px; padding: 15px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0px 4px 10px rgba(255,75,75,0.3); }
+        .animal-tripleta { text-align: center; margin: 0 5px; }
+        .stats-tripleta { text-align: right; color: #00ff00; font-weight: bold; font-size: 1.1rem; min-width: 80px;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -88,9 +89,9 @@ if archivo_subido is not None:
         top_5_global = conteo_general.most_common(5)
         numeros_calientes_globales = [x[0] for x in top_5_global]
         
-        # 🔥 TUS 4 PESTAÑAS BLINDADAS 🔥
         tab1, tab2, tab3, tab4 = st.tabs(["🔍 Cacería", "🚨 Atrasos", "🔥 Calientes", "⏱️ Backtesting Tripletas"])
         
+        # --- PESTAÑA 1, 2 y 3 (Se mantienen intactas y perfectas) ---
         with tab1:
             st.markdown("<h3>DETECCIÓN DE PARES UNIDOS</h3>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
@@ -161,11 +162,11 @@ if archivo_subido is not None:
                 st.markdown(f"<div class='caja-resultado' style='border-left: 5px solid #00ff00; text-align: left; display: flex; align-items: center;'><div style='font-size: 2.5rem; margin-right: 15px;'>{emo_glob}</div><div><span class='caja-numero' style='color: #00ff00;'>{num_glob} - {nom_glob}</span><br><span style='color: white;'>Ha salido <b>{freq_glob} veces</b> recientemente.</span></div></div>", unsafe_allow_html=True)
 
         # ==========================================
-        # PESTAÑA 4: LABORATORIO DE TRIPLETAS (BACKTESTING)
+        # PESTAÑA 4: BACKTESTING + FILTRO DE SINERGIA
         # ==========================================
         with tab4:
-            st.markdown("<h3>⏱️ SIMULADOR TOP 10 TRIPLETAS</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; color:#888;'>Analiza la historia completa y extrae las 10 tripletas que MÁS revientan en las 12 horas siguientes al detonante.</p>", unsafe_allow_html=True)
+            st.markdown("<h3>⏱️ SIMULADOR DE TRIPLETAS</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#888;'>Filtra las mejores combinaciones históricas cruzadas con los números calientes de hoy.</p>", unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -179,7 +180,6 @@ if archivo_subido is not None:
                 
                 ventanas_validas = []
                 
-                # Rastreamos todas las cajas de 12 horas post-detonante
                 for i in range(total_historial - 1):
                     if (todos_los_datos[i] == par1_bt and todos_los_datos[i+1] == par2_bt) or (todos_los_datos[i] == par2_bt and todos_los_datos[i+1] == par1_bt):
                         if i + 2 < total_historial:
@@ -189,18 +189,16 @@ if archivo_subido is not None:
                 if not ventanas_validas:
                     st.warning("⚠️ Este par no tiene historial suficiente.")
                 else:
-                    st.info(f"🔍 Escaneando {len(ventanas_validas)} ventanas de 12 horas en la historia...")
+                    st.info(f"🔍 Escaneando {len(ventanas_validas)} ventanas de 12 horas...")
                     
                     conteo_tripletas = Counter()
                     
-                    # Función para ordenar la tripleta y que no se dupliquen (ej: 1,2,3 es igual a 3,2,1)
                     def ordenar_animales(x):
                         return -1 if x == '00' else int(x)
 
                     for ventana in ventanas_validas:
                         animales_unicos = list(set(ventana))
                         if len(animales_unicos) >= 3:
-                            # Armamos las combinaciones de 3
                             combos_de_3 = list(itertools.combinations(sorted(animales_unicos, key=ordenar_animales), 3))
                             for combo in combos_de_3:
                                 conteo_tripletas[combo] += 1
@@ -208,16 +206,60 @@ if archivo_subido is not None:
                     if not conteo_tripletas:
                         st.warning("No se lograron formar tripletas completas.")
                     else:
-                        # Sacamos el TOP 10 exacto
-                        top_10_tripletas = conteo_tripletas.most_common(10)
-                        st.markdown("<h4>🏆 TOP 10 TRIPLETAS HISTÓRICAS</h4>", unsafe_allow_html=True)
+                        # --- NUEVA LÓGICA DE FILTRADO (SINERGIA) ---
+                        tripletas_sinergia = []
+                        for tripleta, reps in conteo_tripletas.items():
+                            # Verificamos si AL MENOS UN animal de la tripleta está caliente hoy
+                            if any(num in numeros_calientes_globales for num in tripleta):
+                                tripletas_sinergia.append((tripleta, reps))
+                                
+                        # Ordenamos ambas listas de mayor a menor
+                        top_10_sinergia = sorted(tripletas_sinergia, key=lambda x: x[1], reverse=True)[:10]
+                        top_10_historico = conteo_tripletas.most_common(10)
                         
-                        for idx, (tripleta, repeticiones) in enumerate(top_10_tripletas):
+                        # --- RENDERIZADO DEL TOP SINERGIA ---
+                        st.markdown("<h4 style='color: #ff4b4b; margin-top: 20px;'>🔥 TOP 10 CON SINERGIA ACTUAL</h4>", unsafe_allow_html=True)
+                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>Tripletas históricas que contienen al menos un número del Top 5 Caliente de esta semana.</p>", unsafe_allow_html=True)
+                        
+                        if not top_10_sinergia:
+                            st.info("Ninguna de las tripletas más comunes coincide con los números calientes actuales. Guíate por la lista histórica.")
+                        else:
+                            for idx, (tripleta, repeticiones) in enumerate(top_10_sinergia):
+                                n1, n2, n3 = tripleta
+                                
+                                # Función para pintar de rojo y ponerle fueguito al animal si está caliente
+                                def formato_animal(num):
+                                    _, emoji = animales.get(num, ('?', '❓'))
+                                    es_caliente = num in numeros_calientes_globales
+                                    color = "#ff4b4b" if es_caliente else "#ffffff"
+                                    icono = "🔥" if es_caliente else ""
+                                    return f"<div class='animal-tripleta'><span style='font-size: 2rem;'>{emoji}</span><br><b style='color: {color};'>{num} {icono}</b></div>"
+                                
+                                medalla = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else f"#{idx+1}"
+                                
+                                st.markdown(f"""
+                                    <div class='caja-tripleta-fuego'>
+                                        <div style='display: flex; align-items: center;'>
+                                            <div style='font-size: 1.5rem; margin-right: 15px; color: #ff4b4b;'><b>{medalla}</b></div>
+                                            {formato_animal(n1)}
+                                            {formato_animal(n2)}
+                                            {formato_animal(n3)}
+                                        </div>
+                                        <div class='stats-tripleta' style='color: #ff4b4b;'>
+                                            🎯 {repeticiones}x
+                                        </div>
+                                    </div>
+                                """, unsafe_allow_html=True)
+
+                        # --- RENDERIZADO DEL TOP HISTÓRICO PURO ---
+                        st.markdown("<h4 style='color: #D4AF37; margin-top: 30px;'>🏛️ TOP 10 HISTÓRICO PURO</h4>", unsafe_allow_html=True)
+                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>La estadística matemática dura de toda la vida, sin importar si están fríos o calientes hoy.</p>", unsafe_allow_html=True)
+                        
+                        for idx, (tripleta, repeticiones) in enumerate(top_10_historico):
                             n1, n2, n3 = tripleta
                             _, e1 = animales.get(n1, ('?', '❓'))
                             _, e2 = animales.get(n2, ('?', '❓'))
                             _, e3 = animales.get(n3, ('?', '❓'))
-                            
                             medalla = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else f"#{idx+1}"
                             
                             st.markdown(f"""
@@ -229,7 +271,7 @@ if archivo_subido is not None:
                                         <div class='animal-tripleta'><span style='font-size: 2rem;'>{e3}</span><br><b>{n3}</b></div>
                                     </div>
                                     <div class='stats-tripleta'>
-                                        🎯 {repeticiones} veces
+                                        🎯 {repeticiones}x
                                     </div>
                                 </div>
                             """, unsafe_allow_html=True)
