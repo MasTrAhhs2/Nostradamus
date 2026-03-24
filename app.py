@@ -296,3 +296,4 @@ if archivo_subido is not None:
                                 st.markdown(f"<div class='caja-tripleta'><div style='display: flex; align-items: center;'><div style='font-size: 1.5rem; margin-right: 15px; color: #D4AF37;'><b>#{idx+1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e1}</span><br><b>{n1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e2}</span><br><b>{n2}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e3}</span><br><b>{n3}</b></div></div><div class='stats-tripleta'>🎯 {repeticiones}x</div></div>", unsafe_allow_html=True)
 
     except Exception as e:
+        st.error(f"❌ Error procesando el archivo: {e}")
