@@ -28,6 +28,10 @@ st.markdown("""
         h1, h2, h3 { text-align: center; font-family: 'Montserrat', sans-serif; color: #D4AF37; }
         div[data-baseweb="input"] { border-radius: 10px; border: 2px solid #D4AF37; background-color: #111111; }
         div[data-baseweb="input"] input { font-size: 2rem !important; text-align: center !important; font-weight: bold; color: white; }
+        
+        /* Estilo para el SelectBox VIP */
+        div[data-baseweb="select"] { border-radius: 10px; border: 2px solid #ff4b4b; background-color: #1a0000; }
+        
         .stTabs [data-baseweb="tab-list"] { background-color: #111111; border-radius: 10px; padding: 5px; }
         .stTabs [data-baseweb="tab"] { color: #ffffff; font-weight: bold; }
         .stTabs [aria-selected="true"] { background-color: #D4AF37 !important; color: #000000 !important; border-radius: 5px; }
@@ -79,6 +83,9 @@ if archivo_subido is not None:
         st.success(f"✅ Data cargada y sincronizada: {total_historial} sorteos listos.")
         st.divider()
 
+        # ==========================================
+        # CÁLCULOS GLOBALES (Calientes y Fríos)
+        # ==========================================
         ventana_caliente = 800
         if total_historial < ventana_caliente:
             datos_recientes = todos_los_datos
@@ -88,10 +95,21 @@ if archivo_subido is not None:
         conteo_general = Counter(datos_recientes)
         top_5_global = conteo_general.most_common(5)
         numeros_calientes_globales = [x[0] for x in top_5_global]
+
+        atrasos_globales = {}
+        lista_inversa = todos_los_datos[::-1]
+        for num_str in animales.keys():
+            try:
+                atrasos_globales[num_str] = lista_inversa.index(num_str)
+            except ValueError:
+                atrasos_globales[num_str] = total_historial
+                
+        top_10_frios = sorted(atrasos_globales.items(), key=lambda x: x[1], reverse=True)[:10]
+        numeros_frios_globales = [x[0] for x in top_10_frios]
         
-        tab1, tab2, tab3, tab4 = st.tabs(["🔍 Cacería", "🚨 Atrasos", "🔥 Calientes", "⏱️ Backtesting Tripletas"])
+        tab1, tab2, tab3, tab4 = st.tabs(["🔍 Cacería", "🚨 Atrasos", "🔥 Calientes", "⏱️ Laboratorio VIP"])
         
-        # --- PESTAÑA 1, 2 y 3 (Se mantienen intactas y perfectas) ---
+        # --- Pestañas 1, 2 y 3 ---
         with tab1:
             st.markdown("<h3>DETECCIÓN DE PARES UNIDOS</h3>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
@@ -142,15 +160,8 @@ if archivo_subido is not None:
         with tab2:
             st.markdown("<h3>🚨 NÚMEROS DESAPARECIDOS</h3>", unsafe_allow_html=True)
             sorteos_diarios = 12
-            atrasos = {}
-            lista_inversa = todos_los_datos[::-1]
-            for num_str in animales.keys():
-                try:
-                    atrasos[num_str] = lista_inversa.index(num_str)
-                except ValueError:
-                    atrasos[num_str] = total_historial
-                    
-            for num_atr, sorteos in sorted(atrasos.items(), key=lambda x: x[1], reverse=True)[:5]:
+            atrasos_ordenados = sorted(atrasos_globales.items(), key=lambda x: x[1], reverse=True)[:5]
+            for num_atr, sorteos in atrasos_ordenados:
                 dias_aprox = sorteos // sorteos_diarios
                 nom_atr, emo_atr = animales.get(num_atr, ('?', '❓'))
                 st.markdown(f"<div class='caja-resultado' style='border-left: 5px solid #ff4b4b; text-align: left; display: flex; align-items: center;'><div style='font-size: 2.5rem; margin-right: 15px;'>{emo_atr}</div><div><span class='caja-numero' style='color: #ff4b4b;'>{num_atr} - {nom_atr}</span><br><span style='color: white; font-weight: bold;'>{sorteos} sorteos sin salir</span><br><span style='color: #aaaaaa; font-size: 0.85rem;'>⏱️ Aprox. <b>{dias_aprox} días</b> de atraso</span></div></div>", unsafe_allow_html=True)
@@ -162,11 +173,11 @@ if archivo_subido is not None:
                 st.markdown(f"<div class='caja-resultado' style='border-left: 5px solid #00ff00; text-align: left; display: flex; align-items: center;'><div style='font-size: 2.5rem; margin-right: 15px;'>{emo_glob}</div><div><span class='caja-numero' style='color: #00ff00;'>{num_glob} - {nom_glob}</span><br><span style='color: white;'>Ha salido <b>{freq_glob} veces</b> recientemente.</span></div></div>", unsafe_allow_html=True)
 
         # ==========================================
-        # PESTAÑA 4: BACKTESTING + FILTRO DE SINERGIA
+        # PESTAÑA 4: LABORATORIO VIP (SELECTOR MANUAL)
         # ==========================================
         with tab4:
-            st.markdown("<h3>⏱️ SIMULADOR DE TRIPLETAS</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; color:#888;'>Filtra las mejores combinaciones históricas cruzadas con los números calientes de hoy.</p>", unsafe_allow_html=True)
+            st.markdown("<h3>⏱️ LABORATORIO VIP DE TRIPLETAS</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#888;'>Elige tu animal caliente favorito y filtra el Top 10 de combinaciones purificadas (CERO fríos).</p>", unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -179,7 +190,6 @@ if archivo_subido is not None:
                 par2_bt = par2_bt.strip()
                 
                 ventanas_validas = []
-                
                 for i in range(total_historial - 1):
                     if (todos_los_datos[i] == par1_bt and todos_los_datos[i+1] == par2_bt) or (todos_los_datos[i] == par2_bt and todos_los_datos[i+1] == par1_bt):
                         if i + 2 < total_historial:
@@ -189,10 +199,7 @@ if archivo_subido is not None:
                 if not ventanas_validas:
                     st.warning("⚠️ Este par no tiene historial suficiente.")
                 else:
-                    st.info(f"🔍 Escaneando {len(ventanas_validas)} ventanas de 12 horas...")
-                    
                     conteo_tripletas = Counter()
-                    
                     def ordenar_animales(x):
                         return -1 if x == '00' else int(x)
 
@@ -206,41 +213,53 @@ if archivo_subido is not None:
                     if not conteo_tripletas:
                         st.warning("No se lograron formar tripletas completas.")
                     else:
-                        # --- NUEVA LÓGICA DE FILTRADO (SINERGIA) ---
-                        tripletas_sinergia = []
+                        st.divider()
+                        
+                        # --- SELECTOR VIP DE ANIMALES CALIENTES ---
+                        opciones_menu = []
+                        for num_cal in numeros_calientes_globales:
+                            nombre, emoji = animales.get(num_cal, ('?', '❓'))
+                            opciones_menu.append(f"{num_cal} - {nombre} {emoji}")
+                            
+                        st.markdown("<h4 style='color: #ff4b4b;'>🔥 Selecciona tu Animal Base:</h4>", unsafe_allow_html=True)
+                        seleccion_usuario = st.selectbox("Escoge uno de los 5 más calientes actuales:", opciones_menu)
+                        
+                        # Extraemos solo el número de la selección (Ej: "15 - Zorro 🦊" -> "15")
+                        animal_base_elegido = seleccion_usuario.split(" ")[0]
+                        nombre_base, emoji_base = animales.get(animal_base_elegido, ('?', '❓'))
+
+                        # --- FILTRADO EN TIEMPO REAL ---
+                        tripletas_filtradas = []
                         for tripleta, reps in conteo_tripletas.items():
-                            # Verificamos si AL MENOS UN animal de la tripleta está caliente hoy
-                            if any(num in numeros_calientes_globales for num in tripleta):
-                                tripletas_sinergia.append((tripleta, reps))
+                            tiene_el_elegido = animal_base_elegido in tripleta
+                            tiene_frio = any(num in numeros_frios_globales for num in tripleta)
+                            
+                            # Regla: TIENE que estar el animal seleccionado, y NO puede haber muertos
+                            if tiene_el_elegido and not tiene_frio:
+                                tripletas_filtradas.append((tripleta, reps))
                                 
-                        # Ordenamos ambas listas de mayor a menor
-                        top_10_sinergia = sorted(tripletas_sinergia, key=lambda x: x[1], reverse=True)[:10]
-                        top_10_historico = conteo_tripletas.most_common(10)
+                        top_10_filtrado = sorted(tripletas_filtradas, key=lambda x: x[1], reverse=True)[:10]
                         
-                        # --- RENDERIZADO DEL TOP SINERGIA ---
-                        st.markdown("<h4 style='color: #ff4b4b; margin-top: 20px;'>🔥 TOP 10 CON SINERGIA ACTUAL</h4>", unsafe_allow_html=True)
-                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>Tripletas históricas que contienen al menos un número del Top 5 Caliente de esta semana.</p>", unsafe_allow_html=True)
+                        def formato_animal(num):
+                            _, emoji = animales.get(num, ('?', '❓'))
+                            es_base = num == animal_base_elegido
+                            es_caliente = num in numeros_calientes_globales
+                            color = "#ff4b4b" if es_caliente else "#ffffff"
+                            icono = "🔥" if es_base else "" # Le ponemos fueguito al que elegiste
+                            return f"<div class='animal-tripleta'><span style='font-size: 2rem;'>{emoji}</span><br><b style='color: {color};'>{num} {icono}</b></div>"
+
+                        st.markdown(f"<h4 style='color: #ff4b4b; margin-top: 20px;'>🏆 TOP 10 EXCLUSIVO: {animal_base_elegido} - {nombre_base} {emoji_base}</h4>", unsafe_allow_html=True)
+                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>Las mejores combinaciones con tu animal elegido, limpias de números atrasados.</p>", unsafe_allow_html=True)
                         
-                        if not top_10_sinergia:
-                            st.info("Ninguna de las tripletas más comunes coincide con los números calientes actuales. Guíate por la lista histórica.")
+                        if not top_10_filtrado:
+                            st.info(f"Mano, lamentablemente todas las combinaciones con el {nombre_base} tienen números muertos atrasados. Intenta seleccionando otro animal de la lista.")
                         else:
-                            for idx, (tripleta, repeticiones) in enumerate(top_10_sinergia):
+                            for idx, (tripleta, repeticiones) in enumerate(top_10_filtrado):
                                 n1, n2, n3 = tripleta
-                                
-                                # Función para pintar de rojo y ponerle fueguito al animal si está caliente
-                                def formato_animal(num):
-                                    _, emoji = animales.get(num, ('?', '❓'))
-                                    es_caliente = num in numeros_calientes_globales
-                                    color = "#ff4b4b" if es_caliente else "#ffffff"
-                                    icono = "🔥" if es_caliente else ""
-                                    return f"<div class='animal-tripleta'><span style='font-size: 2rem;'>{emoji}</span><br><b style='color: {color};'>{num} {icono}</b></div>"
-                                
-                                medalla = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else f"#{idx+1}"
-                                
                                 st.markdown(f"""
                                     <div class='caja-tripleta-fuego'>
                                         <div style='display: flex; align-items: center;'>
-                                            <div style='font-size: 1.5rem; margin-right: 15px; color: #ff4b4b;'><b>{medalla}</b></div>
+                                            <div style='font-size: 1.5rem; margin-right: 15px; color: #ff4b4b;'><b>#{idx+1}</b></div>
                                             {formato_animal(n1)}
                                             {formato_animal(n2)}
                                             {formato_animal(n3)}
@@ -251,30 +270,15 @@ if archivo_subido is not None:
                                     </div>
                                 """, unsafe_allow_html=True)
 
-                        # --- RENDERIZADO DEL TOP HISTÓRICO PURO ---
-                        st.markdown("<h4 style='color: #D4AF37; margin-top: 30px;'>🏛️ TOP 10 HISTÓRICO PURO</h4>", unsafe_allow_html=True)
-                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>La estadística matemática dura de toda la vida, sin importar si están fríos o calientes hoy.</p>", unsafe_allow_html=True)
-                        
-                        for idx, (tripleta, repeticiones) in enumerate(top_10_historico):
-                            n1, n2, n3 = tripleta
-                            _, e1 = animales.get(n1, ('?', '❓'))
-                            _, e2 = animales.get(n2, ('?', '❓'))
-                            _, e3 = animales.get(n3, ('?', '❓'))
-                            medalla = "🥇" if idx == 0 else "🥈" if idx == 1 else "🥉" if idx == 2 else f"#{idx+1}"
-                            
-                            st.markdown(f"""
-                                <div class='caja-tripleta'>
-                                    <div style='display: flex; align-items: center;'>
-                                        <div style='font-size: 1.5rem; margin-right: 15px; color: #D4AF37;'><b>{medalla}</b></div>
-                                        <div class='animal-tripleta'><span style='font-size: 2rem;'>{e1}</span><br><b>{n1}</b></div>
-                                        <div class='animal-tripleta'><span style='font-size: 2rem;'>{e2}</span><br><b>{n2}</b></div>
-                                        <div class='animal-tripleta'><span style='font-size: 2rem;'>{e3}</span><br><b>{n3}</b></div>
-                                    </div>
-                                    <div class='stats-tripleta'>
-                                        🎯 {repeticiones}x
-                                    </div>
-                                </div>
-                            """, unsafe_allow_html=True)
+                        # Dejamos el histórico puro abajo plegado por si acaso
+                        with st.expander("Ver Top 10 Histórico General (Sin Filtros)"):
+                            top_10_historico = conteo_tripletas.most_common(10)
+                            for idx, (tripleta, repeticiones) in enumerate(top_10_historico):
+                                n1, n2, n3 = tripleta
+                                _, e1 = animales.get(n1, ('?', '❓'))
+                                _, e2 = animales.get(n2, ('?', '❓'))
+                                _, e3 = animales.get(n3, ('?', '❓'))
+                                st.markdown(f"<div class='caja-tripleta'><div style='display: flex; align-items: center;'><div style='font-size: 1.5rem; margin-right: 15px; color: #D4AF37;'><b>#{idx+1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e1}</span><br><b>{n1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e2}</span><br><b>{n2}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e3}</span><br><b>{n3}</b></div></div><div class='stats-tripleta'>🎯 {repeticiones}x</div></div>", unsafe_allow_html=True)
 
     except Exception as e:
         st.error(f"❌ Error procesando el archivo: {e}")
