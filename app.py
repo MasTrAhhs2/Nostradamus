@@ -29,8 +29,9 @@ st.markdown("""
         div[data-baseweb="input"] { border-radius: 10px; border: 2px solid #D4AF37; background-color: #111111; }
         div[data-baseweb="input"] input { font-size: 2rem !important; text-align: center !important; font-weight: bold; color: white; }
         
-        /* Estilo para el SelectBox VIP */
+        /* Estilo para los Selectores Multibles */
         div[data-baseweb="select"] { border-radius: 10px; border: 2px solid #ff4b4b; background-color: #1a0000; }
+        span[data-baseweb="tag"] { background-color: #ff4b4b !important; color: white !important; font-weight: bold; font-size: 1rem; }
         
         .stTabs [data-baseweb="tab-list"] { background-color: #111111; border-radius: 10px; padding: 5px; }
         .stTabs [data-baseweb="tab"] { color: #ffffff; font-weight: bold; }
@@ -84,7 +85,7 @@ if archivo_subido is not None:
         st.divider()
 
         # ==========================================
-        # CÁLCULOS GLOBALES (Calientes y Fríos)
+        # CÁLCULOS GLOBALES
         # ==========================================
         ventana_caliente = 800
         if total_historial < ventana_caliente:
@@ -109,7 +110,7 @@ if archivo_subido is not None:
         
         tab1, tab2, tab3, tab4 = st.tabs(["🔍 Cacería", "🚨 Atrasos", "🔥 Calientes", "⏱️ Laboratorio VIP"])
         
-        # --- Pestañas 1, 2 y 3 ---
+        # --- Pestañas 1, 2 y 3 intactas ---
         with tab1:
             st.markdown("<h3>DETECCIÓN DE PARES UNIDOS</h3>", unsafe_allow_html=True)
             col1, col2 = st.columns(2)
@@ -173,11 +174,11 @@ if archivo_subido is not None:
                 st.markdown(f"<div class='caja-resultado' style='border-left: 5px solid #00ff00; text-align: left; display: flex; align-items: center;'><div style='font-size: 2.5rem; margin-right: 15px;'>{emo_glob}</div><div><span class='caja-numero' style='color: #00ff00;'>{num_glob} - {nom_glob}</span><br><span style='color: white;'>Ha salido <b>{freq_glob} veces</b> recientemente.</span></div></div>", unsafe_allow_html=True)
 
         # ==========================================
-        # PESTAÑA 4: LABORATORIO VIP (SELECTOR MANUAL)
+        # PESTAÑA 4: LABORATORIO VIP MULTIPLE
         # ==========================================
         with tab4:
             st.markdown("<h3>⏱️ LABORATORIO VIP DE TRIPLETAS</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='text-align:center; color:#888;'>Elige tu animal caliente favorito y filtra el Top 10 de combinaciones purificadas (CERO fríos).</p>", unsafe_allow_html=True)
+            st.markdown("<p style='text-align:center; color:#888;'>Caza las combinaciones de oro. Elige hasta 3 animales calientes para armar tu base y filtra la historia pura.</p>", unsafe_allow_html=True)
             
             col1, col2 = st.columns(2)
             with col1:
@@ -215,62 +216,76 @@ if archivo_subido is not None:
                     else:
                         st.divider()
                         
-                        # --- SELECTOR VIP DE ANIMALES CALIENTES ---
+                        # --- MULTI-SELECTOR VIP DE ANIMALES CALIENTES ---
                         opciones_menu = []
                         for num_cal in numeros_calientes_globales:
                             nombre, emoji = animales.get(num_cal, ('?', '❓'))
                             opciones_menu.append(f"{num_cal} - {nombre} {emoji}")
                             
-                        st.markdown("<h4 style='color: #ff4b4b;'>🔥 Selecciona tu Animal Base:</h4>", unsafe_allow_html=True)
-                        seleccion_usuario = st.selectbox("Escoge uno de los 5 más calientes actuales:", opciones_menu)
+                        st.markdown("<h4 style='color: #ff4b4b;'>🔥 Arma tu Base VIP (Elige 1, 2 o 3 calientes):</h4>", unsafe_allow_html=True)
+                        seleccion_usuario = st.multiselect(
+                            "Toca aquí y escoge tus animales favoritos del Top 5:",
+                            opciones_menu,
+                            max_selections=3  # Bloqueamos en 3 porque una tripleta solo aguanta 3
+                        )
                         
-                        # Extraemos solo el número de la selección (Ej: "15 - Zorro 🦊" -> "15")
-                        animal_base_elegido = seleccion_usuario.split(" ")[0]
-                        nombre_base, emoji_base = animales.get(animal_base_elegido, ('?', '❓'))
-
-                        # --- FILTRADO EN TIEMPO REAL ---
-                        tripletas_filtradas = []
-                        for tripleta, reps in conteo_tripletas.items():
-                            tiene_el_elegido = animal_base_elegido in tripleta
-                            tiene_frio = any(num in numeros_frios_globales for num in tripleta)
-                            
-                            # Regla: TIENE que estar el animal seleccionado, y NO puede haber muertos
-                            if tiene_el_elegido and not tiene_frio:
-                                tripletas_filtradas.append((tripleta, reps))
-                                
-                        top_10_filtrado = sorted(tripletas_filtradas, key=lambda x: x[1], reverse=True)[:10]
-                        
-                        def formato_animal(num):
-                            _, emoji = animales.get(num, ('?', '❓'))
-                            es_base = num == animal_base_elegido
-                            es_caliente = num in numeros_calientes_globales
-                            color = "#ff4b4b" if es_caliente else "#ffffff"
-                            icono = "🔥" if es_base else "" # Le ponemos fueguito al que elegiste
-                            return f"<div class='animal-tripleta'><span style='font-size: 2rem;'>{emoji}</span><br><b style='color: {color};'>{num} {icono}</b></div>"
-
-                        st.markdown(f"<h4 style='color: #ff4b4b; margin-top: 20px;'>🏆 TOP 10 EXCLUSIVO: {animal_base_elegido} - {nombre_base} {emoji_base}</h4>", unsafe_allow_html=True)
-                        st.markdown("<p style='color: #aaaaaa; font-size: 0.85rem;'>Las mejores combinaciones con tu animal elegido, limpias de números atrasados.</p>", unsafe_allow_html=True)
-                        
-                        if not top_10_filtrado:
-                            st.info(f"Mano, lamentablemente todas las combinaciones con el {nombre_base} tienen números muertos atrasados. Intenta seleccionando otro animal de la lista.")
+                        if not seleccion_usuario:
+                            st.info("👆 Agrega al menos un animal caliente en la caja de arriba para empezar a buscar las tripletas doradas.")
                         else:
-                            for idx, (tripleta, repeticiones) in enumerate(top_10_filtrado):
-                                n1, n2, n3 = tripleta
-                                st.markdown(f"""
-                                    <div class='caja-tripleta-fuego'>
-                                        <div style='display: flex; align-items: center;'>
-                                            <div style='font-size: 1.5rem; margin-right: 15px; color: #ff4b4b;'><b>#{idx+1}</b></div>
-                                            {formato_animal(n1)}
-                                            {formato_animal(n2)}
-                                            {formato_animal(n3)}
-                                        </div>
-                                        <div class='stats-tripleta' style='color: #ff4b4b;'>
-                                            🎯 {repeticiones}x
-                                        </div>
-                                    </div>
-                                """, unsafe_allow_html=True)
+                            # Extraemos solo los números de lo que seleccionaste
+                            animales_base_elegidos = [sel.split(" ")[0] for sel in seleccion_usuario]
+                            
+                            # --- FILTRADO EN TIEMPO REAL MULTIPLE ---
+                            tripletas_filtradas = []
+                            for tripleta, reps in conteo_tripletas.items():
+                                # Verificamos si TODOS los animales que elegiste están metidos en esa tripleta
+                                tiene_los_elegidos = all(animal in tripleta for animal in animales_base_elegidos)
+                                tiene_frio = any(num in numeros_frios_globales for num in tripleta)
+                                
+                                # Regla de oro: Tiene que tener la base completa y NADA de muertos
+                                if tiene_los_elegidos and not tiene_frio:
+                                    tripletas_filtradas.append((tripleta, reps))
+                                    
+                            top_10_filtrado = sorted(tripletas_filtradas, key=lambda x: x[1], reverse=True)[:10]
+                            
+                            def formato_animal(num):
+                                _, emoji = animales.get(num, ('?', '❓'))
+                                es_base = num in animales_base_elegidos
+                                color = "#ff4b4b" if es_base else "#ffffff"
+                                icono = "🔥" if es_base else "" 
+                                return f"<div class='animal-tripleta'><span style='font-size: 2rem;'>{emoji}</span><br><b style='color: {color};'>{num} {icono}</b></div>"
 
-                        # Dejamos el histórico puro abajo plegado por si acaso
+                            # Títulos dinámicos dependiendo de cuántos metiste
+                            if len(animales_base_elegidos) == 1:
+                                msj = f"Tripletas purificadas que contienen al firme: {animales_base_elegidos[0]}"
+                            elif len(animales_base_elegidos) == 2:
+                                msj = f"Tripletas purificadas que amarran el súper par: {animales_base_elegidos[0]} y {animales_base_elegidos[1]}"
+                            else:
+                                msj = f"¿Habrá salido la tripleta perfecta de fuego puro? {animales_base_elegidos[0]} - {animales_base_elegidos[1]} - {animales_base_elegidos[2]}"
+
+                            st.markdown(f"<h4 style='color: #ff4b4b; margin-top: 20px;'>🏆 TOP 10 EXCLUSIVO DE TU BASE</h4>", unsafe_allow_html=True)
+                            st.markdown(f"<p style='color: #aaaaaa; font-size: 0.85rem;'>{msj}</p>", unsafe_allow_html=True)
+                            
+                            if not top_10_filtrado:
+                                st.error(f"❌ Mano, la estadística es fría: esa combinación exacta no ha reventado nunca sin números atrasados estorbando. Intenta quitar un animal o armar otro combo en el buscador de arriba.")
+                            else:
+                                for idx, (tripleta, repeticiones) in enumerate(top_10_filtrado):
+                                    n1, n2, n3 = tripleta
+                                    st.markdown(f"""
+                                        <div class='caja-tripleta-fuego'>
+                                            <div style='display: flex; align-items: center;'>
+                                                <div style='font-size: 1.5rem; margin-right: 15px; color: #ff4b4b;'><b>#{idx+1}</b></div>
+                                                {formato_animal(n1)}
+                                                {formato_animal(n2)}
+                                                {formato_animal(n3)}
+                                            </div>
+                                            <div class='stats-tripleta' style='color: #ff4b4b;'>
+                                                🎯 {repeticiones}x
+                                            </div>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+
+                        # Histórico plegable
                         with st.expander("Ver Top 10 Histórico General (Sin Filtros)"):
                             top_10_historico = conteo_tripletas.most_common(10)
                             for idx, (tripleta, repeticiones) in enumerate(top_10_historico):
@@ -281,4 +296,3 @@ if archivo_subido is not None:
                                 st.markdown(f"<div class='caja-tripleta'><div style='display: flex; align-items: center;'><div style='font-size: 1.5rem; margin-right: 15px; color: #D4AF37;'><b>#{idx+1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e1}</span><br><b>{n1}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e2}</span><br><b>{n2}</b></div><div class='animal-tripleta'><span style='font-size: 2rem;'>{e3}</span><br><b>{n3}</b></div></div><div class='stats-tripleta'>🎯 {repeticiones}x</div></div>", unsafe_allow_html=True)
 
     except Exception as e:
-        st.error(f"❌ Error procesando el archivo: {e}")
